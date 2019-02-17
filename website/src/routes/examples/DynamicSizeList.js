@@ -174,14 +174,24 @@ export default class DynamicSizeList extends PureComponent {
             >
               Resize list
             </button>
-            <List
-              className={styles.List}
-              height={200}
-              itemCount={items.length}
-              width={halfSize ? 200 : 300}
+            <button
+              className={styles.ExampleButton}
+              onClick={() => {
+                this.setState(prev => ({ hideList: !prev.hideList }));
+              }}
             >
-              {RefForwardedRow}
-            </List>
+              Hide list
+            </button>
+            <div style={this.state.hideList ? { display: 'none' } : undefined}>
+              <List
+                className={styles.List}
+                height={200}
+                itemCount={items.length}
+                width={halfSize ? 200 : 300}
+              >
+                {RefForwardedRow}
+              </List>
+            </div>
           </ProfiledExample>
           <div className={styles.ExampleCode}>
             <CodeBlock value={CODE_VERTICAL} />

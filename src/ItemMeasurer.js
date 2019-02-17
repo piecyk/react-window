@@ -120,12 +120,12 @@ export default class ItemMeasurer extends Component<ItemMeasurerProps, void> {
       node.ownerDocument.defaultView &&
       node instanceof node.ownerDocument.defaultView.HTMLElement
     ) {
-      const newSize =
+      const [isDisplayed, newSize] =
         direction === 'horizontal'
-          ? Math.ceil(node.offsetWidth)
-          : Math.ceil(node.offsetHeight);
+          ? [node.offsetHeight > 0, Math.ceil(node.offsetWidth)]
+          : [node.offsetWidth > 0, Math.ceil(node.offsetHeight)];
 
-      if (oldSize !== newSize) {
+      if (isDisplayed && oldSize !== newSize) {
         handleNewMeasurements(index, newSize, isCommitPhase);
       }
     }
