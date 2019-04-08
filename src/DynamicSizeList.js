@@ -28,11 +28,9 @@ type InstanceProps = {|
   estimatedItemSize: number,
   instance: any,
   itemSizeMap: { [index: number]: number },
-
-  // TODO:
   anchorIndex: number,
   anchorSizeDelta: number,
-  stopIndex: number,
+  renderedItemOffsetMap: { [index: number]: number },
 |};
 
 const getItemMetadata = (
@@ -40,24 +38,12 @@ const getItemMetadata = (
   index: number,
   instanceProps: InstanceProps
 ): ItemMetadata => {
-  const {
-    estimatedItemSize,
-    instance,
-    itemSizeMap,
-    anchorIndex,
-    stopIndex,
-  } = instanceProps;
+  const { estimatedItemSize, itemSizeMap, anchorIndex } = instanceProps;
 
   const size = itemSizeMap[index] || estimatedItemSize;
-
-  // FIXME don't clear cache for every render
-  if (instance._itemStyleCache) {
-    delete instance._itemStyleCache[index];
-  }
-
   let offset = anchorIndex * estimatedItemSize;
 
-  if (index > anchorIndex && index <= stopIndex) {
+  if (index > anchorIndex) {
     for (let i = anchorIndex; i < index; i++) {
       offset += itemSizeMap[i] || estimatedItemSize;
     }
@@ -69,15 +55,22 @@ const getItemMetadata = (
 
 const getEstimatedTotalSize = (
   { itemCount }: Props<any>,
-  { itemSizeMap, estimatedItemSize, anchorIndex, stopIndex }: InstanceProps
+  {
+    itemSizeMap,
+    estimatedItemSize,
+    anchorIndex,
+    renderedItemOffsetMap,
+  }: InstanceProps
 ) => {
+  const renderedIndexes = Object.keys(renderedItemOffsetMap);
+
   let totalMeasuredSize = 0;
-  let rendered = 0;
-  for (let i = anchorIndex; i <= stopIndex; i++) {
+  renderedIndexes.forEach(i => {
+    // $FlowFixMe
     totalMeasuredSize += itemSizeMap[i] || estimatedItemSize;
-    rendered++;
-  }
-  const restSize = (itemCount - rendered) * estimatedItemSize;
+  });
+
+  const restSize = (itemCount - renderedIndexes.length) * estimatedItemSize;
   const nextSize = restSize + totalMeasuredSize;
 
   return nextSize;
@@ -203,10 +196,12 @@ const DynamicSizeList = createListComponent({
     instanceProps: InstanceProps
   ): number => {
     const { direction, layout, height, itemCount, width } = props;
+    const { itemSizeMap, estimatedItemSize } = instanceProps;
 
     const size = (((direction === 'horizontal' || layout === 'horizontal'
       ? width
       : height): any): number);
+
     const itemMetadata = getItemMetadata(props, startIndex, instanceProps);
     const maxOffset = scrollOffset + size;
 
@@ -215,7 +210,7 @@ const DynamicSizeList = createListComponent({
 
     while (stopIndex < itemCount - 1 && offset < maxOffset) {
       stopIndex++;
-      offset += getItemMetadata(props, stopIndex, instanceProps).size;
+      offset += itemSizeMap[stopIndex] || estimatedItemSize;
     }
 
     return stopIndex;
@@ -230,8 +225,7 @@ const DynamicSizeList = createListComponent({
       itemSizeMap: {},
       anchorIndex: 0,
       anchorSizeDelta: 0,
-      // TODO:
-      stopIndex: 0,
+      renderedItemOffsetMap: {},
     };
 
     let debounceForceUpdateID = null;
@@ -342,17 +336,28 @@ const DynamicSizeList = createListComponent({
 
       const [, , startIndex, stopIndex] = instance._getRangeToRender();
 
-      // FIXME: store on instance rendered items metadata and re-use them
-      instanceProps.stopIndex = stopIndex;
-
       const items = [];
+      const renderedItemOffsetMap = {};
+      let resetCache = false;
+
       if (itemCount > 0) {
         for (let index = startIndex; index <= stopIndex; index++) {
-          const { size } = getItemMetadata(
+          const { size, offset } = getItemMetadata(
             instance.props,
             index,
             instanceProps
           );
+
+          // TODO: maybe something like this? reset cache from index that changed
+          renderedItemOffsetMap[index] = offset;
+          resetCache =
+            resetCache ||
+            renderedItemOffsetMap[index] !==
+              instanceProps.renderedItemOffsetMap[index];
+
+          if (resetCache && instance._itemStyleCache) {
+            delete instance._itemStyleCache[index];
+          }
 
           // It's important to read style after fetching item metadata.
           // getItemMetadata() will clear stale styles.
@@ -379,6 +384,8 @@ const DynamicSizeList = createListComponent({
           );
         }
       }
+
+      instanceProps.renderedItemOffsetMap = renderedItemOffsetMap;
       return items;
     };
 
