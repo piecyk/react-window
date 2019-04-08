@@ -64,7 +64,7 @@ describe('DynamicSizeList', () => {
       innerRef,
       itemCount: 20,
       onItemsRendered,
-      overscanCount: 1,
+      overscanCount: 0,
       width: 50,
     };
   });
@@ -79,12 +79,12 @@ describe('DynamicSizeList', () => {
           // Initial render uses estimatedItemSize for scrollHeight.
           expect(innerRef.current.style.height).toBe('500px');
 
-          // Given estimatedItemSize and overscanCount, we expect to render 5 items.
-          expect(innerRef.current.children).toHaveLength(5);
+          // Given estimatedItemSize, we expect to render 4 items.
+          expect(innerRef.current.children).toHaveLength(4);
           break;
         case 2:
           // Second render should adjust scrollHeight for newly measured items.
-          expect(innerRef.current.style.height).toBe('525px');
+          expect(innerRef.current.style.height).toBe('520px');
 
           // Newly measured items should be positioned correctly.
           Array.from(innerRef.current.children).forEach((node, index) => {
